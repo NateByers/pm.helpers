@@ -1,10 +1,10 @@
 # library(bigrquery)
 # project <- "tensile-axiom-167413"
 # sql <- "SELECT *
-# FROM [tensile-axiom-167413:cosmic.training_variants] train
-# INNER JOIN [tensile-axiom-167413:cosmic.training_text] test
-# ON test.ID = train.ID
-# WHERE test.ID = 946"
+# FROM [tensile-axiom-167413:cosmic.training_variants] variants
+# INNER JOIN [tensile-axiom-167413:cosmic.training_text] text
+# ON variants.ID = text.ID
+# WHERE variants.ID = 946"
 # q <- query_exec(sql, project = project, useLegacySql = FALSE)
 
 # genes <- sql <- "SELECT distinct(Gene_name)
@@ -54,9 +54,7 @@ process_text <- function(text, gene_variants) {
   aa <- sub("[^a-z0-9+]$", "", aa)
 
   variants_ <- variants %>%
-    dplyr::mutate_all(.funs = tolower(.)) %>%
-    dplyr::filter(Mutation_CDS %in% cds | Mutation_AA %in% aa) %>%
-    dplyr::arrange(starts_with("Mutation"))
+    dplyr::filter(Mutation_CDS %in% cds | Mutation_AA %in% aa)
 
   words <- words %>%
     dplyr::left_join(genes_, "word") %>%
