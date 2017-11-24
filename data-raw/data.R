@@ -6,7 +6,12 @@ project <- "tensile-axiom-167413"
 sql <- "SELECT DISTINCT Gene_name FROM `tensile-axiom-167413.cosmic.cosmic`"
 
 genes <- query_exec(sql, project = project, use_legacy_sql = FALSE) %>%
-  dplyr::rename(gene_name = Gene_name)
+  dplyr::select(Gene_name) %>%
+  dplyr::rename(word = Gene_name) %>%
+  dplyr::mutate(word = tolower(word),
+                gene = TRUE) %>%
+  dplyr::distinct() %>%
+  dplyr::arrange(word)
 
 
 sql <- "SELECT DISTINCT Gene_name, Mutation_CDS, Mutation_AA FROM `tensile-axiom-167413.cosmic.cosmic`"
