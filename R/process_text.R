@@ -57,7 +57,7 @@
 #'   words
 #' }
 
-#' @import dplyr tidytext
+#' @import dplyr tidytext stringr
 process_text <- function(text, gene_variant) {
   # text <- q$text_Text
   
@@ -95,10 +95,35 @@ process_text <- function(text, gene_variant) {
     dplyr::mutate(gene = ifelse(gene, word, NA))
   
   # add variants
-  x <- words %>%
-    dplyr::mutate(variant = ifelse(grepl("p\\.", word), sub("p\\.", "", word), NA))
-  
+  words <- add_variants(words)
   
  
+}
+
+add_variants <- function(x) {
+  # x <- words
+  
+  x <- x %>%
+    dplyr::mutate(variant = ifelse(grepl("p\\.", word), sub("p\\.", "", word), NA))
+  
+  proteins <- stringr::str_split_fixed(x$variant, "\\d{1,}", 2) %>%
+    as.data.frame(stringsAsFactors = FALSE)
+  names(proteins) <- c("from", "to")
+  
+  proteins <- dplyr::left_join(proteins, select(amino_acids, abbr, symbol),
+                               c("from" = "abbr")) %>%
+    dplyr::mutate(from = ifelse(is.na(symbol), from, symbol)) %>%
+    dplyr::select(-symbol)
+  proteins <- dplyr::left_join(proteins, select(amino_acids, abbr, symbol),
+                               c("to" = "abbr")) %>%
+    dplyr::mutate(to = ifelse(is.na(symbol), to, symbol)) %>%
+    dplyr::select(-symbol)
+  
+  proteins$location <- stringr::str_extract(x$variant, "\\d{1,}")
+  
+  proteins <- proteins %>%
+    dplyr::mutate(paste0(from, location, to))
+  
+  
 }
 
