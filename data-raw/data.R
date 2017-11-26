@@ -50,4 +50,12 @@ for(i in names(amino_acids)) {
   amino_acids[[i]] <- tolower(amino_acids[[i]])
 }
 
+
+words_alpha <- readLines("https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt")
+data("stop_words")
+words_alpha <- words_alpha[!words_alpha %in% stop_words$word]
+oma_words <- grep("oma", words_alpha, value = TRUE)
+oma_words <- grep("blastoma|carcinoma|omatosis|sarcoma", oma_words, invert = TRUE, value = TRUE)
+writeLines(oma_words, con = "data-raw/oma_words.txt")
+
 devtools::use_data(genes, variants, amino_acids, overwrite = TRUE)
