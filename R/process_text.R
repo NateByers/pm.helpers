@@ -57,7 +57,7 @@
 #'   words
 #' }
 
-#' @import dplyr tidytext stringr
+#' @import dplyr tidytext stringr tm
 process_text <- function(text, gene_variant) {
   # text <- q$text_Text
   
@@ -70,14 +70,17 @@ process_text <- function(text, gene_variant) {
     # i <- 1
     words <- data_frame(txt = sentences[["sentence"]][i]) %>%
       tidytext::unnest_tokens(word, txt, token = "regex", pattern = "\\s+") %>%
-      dplyr::mutate(word = gsub("\\(|\\)", "", word),
-                    word = sub(",", "", word))
+      dplyr::mutate(word = sub(",", "", word))
     
     cbind(sentences[i, ], words)
     
   }, sentences = sentences))
   
-  words <- Reduce(rbind, words)
+  words <- Reduce(rbind, words) %>%
+    dplyr::mutate(word_number = row_number()) %>%
+    dplyr::group_by(sentence_number) %>%
+    dplyr::mutate(sentence_word_number = row_number()) %>%
+    dplyr::ungroup()
   
   # add stop words
   stops <- stop_words %>%
@@ -89,18 +92,31 @@ process_text <- function(text, gene_variant) {
     dplyr::left_join(stops, "word") %>%
     dplyr::mutate(stop_word = ifelse(is.na(stop_word), FALSE, stop_word))
   
-  # add genes
-  words <- words %>%
-    dplyr::left_join(genes, "word") %>%
-    dplyr::mutate(gene = ifelse(gene, word, NA))
+  # add disease column
+  words <- add_disease(words) %>%
+    dplyr::mutate(word = gsub("\\(|\\)", "", word))
   
-  # add variants
-  words <- add_variants(words)
+  # add gene column
+  words <- add_gene(words)
   
+  # add variant column
+  words <- add_variant(words)
+  
+ 
  
 }
 
-add_variants <- function(x) {
+add_gene <- function(x) {
+  # x <- words
+  
+  x <- x %>%
+    dplyr::left_join(genes, "word") %>%
+    dplyr::mutate(gene = ifelse(gene, word, gene)) 
+  
+  x
+}
+
+add_variant <- function(x) {
   # x <- words
   
   x <- x %>%
@@ -122,8 +138,24 @@ add_variants <- function(x) {
   proteins$location <- stringr::str_extract(x$variant, "\\d{1,}")
   
   proteins <- proteins %>%
-    dplyr::mutate(paste0(from, location, to))
+    dplyr::mutate(variant = paste0(from, location, to),
+                  variant = ifelse(is.na(location), NA, variant))
   
+  x$variant <- proteins$variant
   
+  x
+}
+
+add_disease <- function(x) {
+  # x <- words
+  
+  x <- x %>%
+    dplyr::mutate(disease = grepl("cancer|oma", word))
+    
+  diseases <- x %>%
+    dplyr::filter(!stop_word, disease) %>%
+    dplyr::pull(word)
+  
+  tm::stemDocument(diseases)
 }
 
