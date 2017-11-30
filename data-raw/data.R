@@ -54,8 +54,38 @@ for(i in names(amino_acids)) {
 words_alpha <- readLines("https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt")
 data("stop_words")
 words_alpha <- words_alpha[!words_alpha %in% stop_words$word]
-oma_words <- grep("oma", words_alpha, value = TRUE)
-oma_words <- grep("blastoma|carcinoma|omatosis|sarcoma", oma_words, invert = TRUE, value = TRUE)
-writeLines(oma_words, con = "data-raw/oma_words.txt")
+oma_stop_words <- grep("oma", words_alpha, value = TRUE)
+oma_stop_words <- grep("fibroma$|blastoma|carcinoma|omatosis|sarcoma|glioma$|lipoma$|cystoma$|myxoma$|cytoma$|myoma$", 
+                  oma_stop_words, invert = TRUE, value = TRUE)
+# oma_words <- grep("oma$", oma_stop_words, value = TRUE)
+tumors <- c("acanthoma", "acestoma", "actinomycoma", "adamantinoma", "adamantoma", 
+            "adenoacanthoma", "adenochondroma", "adenocystoma", "adenofibroma",
+            "adenolymphoma", "adenoliomyofibroma", "adenolipoma", "adenoma", "adenomyofibroma",
+            "adenomyoma", "adenomyxoma", "adipofibroma", "adipoma", "angiochondroma",
+            "angiofibroma", "angioglioma", "angiokeratoma", "angiolymphoma", "angiolipoma",
+            "angioma", "angiomyoma", "angionoma", "astrocytoma", "blepharoadenoma",
+            "blepharoatheroma", "blepharocoloboma", "botryomycoma", "cementoma", "cerebroma",
+            "chylangioma", "chloroma", "cholesteatoma", "chondroangioma", "chondroendothelioma",
+            "chondrofibroma", "chondrolipoma", "chondroma", "chondromyoma", "chondromyxoma",
+            "chondrosteoma", "chorioepithelioma", "chorioma", "chorionepithelioma", 
+            "choristoma", "cylindroma", "cystadenoma", "cystoadenoma", "cystoepithelioma",
+            "cystofibroma", "cystoma", "cystomyoma", "cystomyxoma", "cytoma", "craniopharyngioma",
+            "cryptoglioma", "dacryoma", "deciduoma", "dentinoma", "dermatomyoma", "desmocytoma",
+            "desmoma", "ecchymoma", "ecchondroma", "embryoma", "encephaloma", "enchondroma",
+            "endosteoma", "endostoma", "endothelioma", "endotheliomyoma", "endotheliomyxoma", 
+            "ependymoma", "epicoeloma", "epistoma", "epithelioma", "fibroadenoma", "fibroangioma",
+            "fibrochondroma", "fibrocystoma", "fibroenchondroma", "fibroneuroma", "galactoma",
+            "ganglioneuroma", "gyroma", "hepatoma", "hypernephroma", "inochondroma", "inoepithelioma",
+            "lymphadenoma", "lymphangioendothelioma", "lymphoma", "lipochondroma", "luteoma",
+            "mastadenoma", "mastochondroma", "melanoma", "meningioma", "mesothelioma", "myeloma",
+            "myoneuroma", "myxadenoma", "myxoneuroma", "nephradenoma", "neurinoma", "odontoma", 
+            "omphaloma", "oophoroma", "orchiencephaloma", "oscheoma", "osteocephaloma", "osteoencephaloma",
+            "osteosteatoma", "papilloma", "periangioma", "periostoma", "perithelioma", "pinealoma",
+            "sarcoadenoma", "scirrhoma", "splenoma", "teratoma", "thymoma", "trichoepithelioma",
+            "tuberculoma")
 
-devtools::use_data(genes, variants, amino_acids, overwrite = TRUE)
+# writeLines(oma_stop_words, con = "data-raw/oma_words.txt")
+
+oma_stop_words <- oma_stop_words[!oma_stop_words %in% tumors]
+
+devtools::use_data(genes, variants, amino_acids, oma_stop_words, overwrite = TRUE)
