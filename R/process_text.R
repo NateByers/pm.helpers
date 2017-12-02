@@ -83,7 +83,7 @@ process_text <- function(text, gene_variant) {
     dplyr::ungroup()
   
   # add stop words
-  stops <- stop_words %>%
+  stops <- tidytext::stop_words %>%
     dplyr::mutate(stop_word = TRUE) %>%
     dplyr::select(word, stop_word) %>%
     dplyr::distinct()
@@ -109,9 +109,22 @@ process_text <- function(text, gene_variant) {
 add_gene <- function(x) {
   # x <- words
   
+  x$word_join <- sapply(x$word, function(y) {
+    # y <- x$word[126]
+    if(grepl("-", y)) {
+      splits <- strsplit(y, "-")[[1]]
+      lengths <- sapply(splits, nchar)
+      y <- splits[lengths == max(lengths)][1]
+    }
+    y
+  })
+  
   x <- x %>%
-    dplyr::left_join(genes, "word") %>%
-    dplyr::mutate(gene = ifelse(gene, word, gene)) 
+    dplyr::mutate(word_join = gsub("\\(|\\)", "", word_join)) %>% 
+    dplyr::left_join(genes, c("word_join" = "word")) %>%
+    dplyr::mutate(gene = ifelse(gene, word, gene),
+                  gene = gsub("\\(|\\)", "", gene)) %>%
+    dplyr::select(-word_join)
   
   x
 }
@@ -149,13 +162,34 @@ add_variant <- function(x) {
 add_disease <- function(x) {
   # x <- words
   
-  x <- x %>%
-    dplyr::mutate(disease = grepl("cancer|oma", word))
-    
   diseases <- x %>%
-    dplyr::filter(!stop_word, disease) %>%
-    dplyr::pull(word)
+    dplyr::filter(grepl("cancer|oma", word),
+                  !grepl("-", word)) %>%
+    dplyr::mutate(word = gsub("\\(|\\)|\\.|\\d", "", word)) %>%
+    dplyr::filter(!word %in% oma_stop_words) %>%
+    dplyr::pull(word) %>%
+    unique()
   
-  tm::stemDocument(diseases)
+  abbrevs <- sapply(diseases, function(disease, x) {
+    # disease <- diseases[1]
+    first_occurance <- which(x$word == disease)[1]
+    if(grepl("^\\(.+\\)$", x$word[first_occurance + 1])) {
+      abbrev <- gsub("\\(|\\)", "", x$word[first_occurance + 1])
+    } else {
+      abbrev <- NA
+    }
+    abbrev
+  }, x = x)
+  
+  diseases <- c(diseases, unique(abbrevs[!is.na(abbrevs)]))
+  diseases <- data.frame(word_join = diseases, disease = TRUE, stringsAsFactors = FALSE)
+  
+  x <- x %>%
+    dplyr::mutate(word_join = gsub("\\(|\\)|\\.|\\d", "", word)) %>%
+    dplyr::left_join(diseases,"word_join") %>%
+    dplyr::mutate(disease = ifelse(is.na(disease), FALSE, TRUE)) %>%
+    dplyr::select(-word_join)
+  
+  x
 }
 
