@@ -1,16 +1,3 @@
-# library(dplyr)
-# library(bigrquery)
-# project <- "tensile-axiom-167413"
-# sql <- "SELECT *
-# FROM [tensile-axiom-167413:cosmic.training_variants] variants
-# INNER JOIN [tensile-axiom-167413:cosmic.training_text] text
-# ON variants.ID = text.ID
-# WHERE variants.ID = 946"
-# q <- query_exec(sql, project = project, useLegacySql = FALSE)
-# data("oma_stop_words")
-# data("genes")
-# data("amino_acids")
-
 #' @import dplyr tidytext stringr tm
 #' @export
 tidy_text <- function(text, gene_variant) {
