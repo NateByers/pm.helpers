@@ -1,7 +1,6 @@
 #' @export
 #' @import tidytext tidyr
 process_text <- function(tidy_txt, gene_name, variant_name) {
-  # tidy_txt <- words; variant_name <- "r561c"; gene_name <- "pdgfrb"
   
   variant_locations <- tidy_txt %>%
     dplyr::filter(variant == variant_name) %>%
@@ -10,7 +9,6 @@ process_text <- function(tidy_txt, gene_name, variant_name) {
   variant_count <- length(variant_locations)
  
   variant_disease_distances <- sapply(variant_locations, function(x, txt) {
-    # x <- variant_locations[1]
     disease_loations <- txt %>%
       dplyr::filter(disease) %>%
       dplyr::pull(word_number)
@@ -22,7 +20,6 @@ process_text <- function(tidy_txt, gene_name, variant_name) {
   
   variant_variant_distances <- sapply(variant_locations, 
                                       function(x, txt, variant_name) {
-    # x <- variant_locations[1]
     variant_loations <- txt %>%
       dplyr::filter(variant != variant_name, !is.na(variant)) %>%
       dplyr::pull(word_number)

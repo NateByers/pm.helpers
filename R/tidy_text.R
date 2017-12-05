@@ -1,7 +1,6 @@
 #' @import dplyr tidytext stringr tm
 #' @export
 tidy_text <- function(text, gene_variant) {
-  # text <- q$text_Text
   
   sentences <- data.frame(txt = tolower(text), stringsAsFactors = FALSE) %>%
     tidytext::unnest_tokens(sentence, txt, token = "regex", pattern = "\\. ") %>%
@@ -9,7 +8,6 @@ tidy_text <- function(text, gene_variant) {
     dplyr::mutate(sentence_number = row_number())
   
   words <- suppressWarnings(lapply(sentences$sentence_number, function(i, sentences) {
-    # i <- 1
     words <- data_frame(txt = sentences[["sentence"]][i]) %>%
       tidytext::unnest_tokens(word, txt, token = "regex", pattern = "\\s+") %>%
       dplyr::mutate(word = sub(",", "", word))
@@ -48,10 +46,8 @@ tidy_text <- function(text, gene_variant) {
 }
 
 add_gene <- function(x) {
-  # x <- words
   
   x$word_join <- sapply(x$word, function(y) {
-    # y <- x$word[126]
     if(grepl("-", y)) {
       splits <- strsplit(y, "-")[[1]]
       lengths <- sapply(splits, nchar)
@@ -71,7 +67,6 @@ add_gene <- function(x) {
 }
 
 add_variant <- function(x) {
-  # x <- words
   
   x <- x %>%
     dplyr::mutate(variant = ifelse(grepl("p\\.", word), sub("p\\.", "", word), NA))
@@ -101,7 +96,6 @@ add_variant <- function(x) {
 }
 
 add_disease <- function(x) {
-  # x <- words
   
   diseases <- x %>%
     dplyr::filter(grepl("cancer|oma", word),
@@ -112,7 +106,6 @@ add_disease <- function(x) {
     unique()
   
   abbrevs <- sapply(diseases, function(disease, x) {
-    # disease <- diseases[1]
     first_occurance <- which(x$word == disease)[1]
     if(grepl("^\\(.+\\)$", x$word[first_occurance + 1])) {
       abbrev <- gsub("\\(|\\)", "", x$word[first_occurance + 1])
