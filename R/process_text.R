@@ -1,195 +1,79 @@
-# library(dplyr)
-# library(bigrquery)
-# project <- "tensile-axiom-167413"
-# sql <- "SELECT *
-# FROM [tensile-axiom-167413:cosmic.training_variants] variants
-# INNER JOIN [tensile-axiom-167413:cosmic.training_text] text
-# ON variants.ID = text.ID
-# WHERE variants.ID = 946"
-# q <- query_exec(sql, project = project, useLegacySql = FALSE)
-
-
-#' #' @import dplyr tidytext
-#' process_text <- function(text, gene_variants) {
-#'   # text <- q$text_Text
-#' 
-#'   sentences <- data.frame(txt = tolower(text), stringsAsFactors = FALSE) %>%
-#'     tidytext::unnest_tokens(sentence, txt, token = "regex", pattern = "\\. ") %>%
-#'     dplyr::filter(grepl("\\S", sentence)) %>%
-#'     dplyr::mutate(sentence_number = row_number())
-#' 
-#'   words <- lapply(sentences$sentence_number, function(i, sentences) {
-#'     words <- data_frame(txt = sentences[["sentence"]][i]) %>%
-#'       tidytext::unnest_tokens(word, txt, token = "regex", pattern = "\\s+") %>%
-#'       dplyr::mutate(word = gsub("\\(|\\)", "", word))
-#' 
-#'     cbind(sentences[i, ], words)
-#' 
-#'   }, sentences = sentences)
-#' 
-#'   words <- Reduce(rbind, words)
-#' 
-#'   stops <- stop_words %>%
-#'     dplyr::mutate(stop_word = TRUE) %>%
-#'     dplyr::select(word, stop_word) %>%
-#'     dplyr::distinct()
-#' 
-#'   words <- words %>%
-#'     dplyr::left_join(stops, "word") %>%
-#'     dplyr::mutate(stop_word = ifelse(is.na(stop_word), FALSE, stop_word))
-#' 
-#'   genes_ <- genes %>%
-#'     dplyr::mutate(gene_name = tolower(gene_name)) %>%
-#'     dplyr::semi_join(words, c("gene_name" = "word"))
-#' 
-#'   cds <- grep("^c\\.", words$word, value = TRUE)
-#'   cds <- sub("[^a-z0-9+]$", "", cds)
-#'   aa <- grep("^p\\.", words$word, value = TRUE)
-#'   aa <- sub("[^a-z0-9+]$", "", aa)
-#' 
-#'   variants_ <- variants %>%
-#'     dplyr::filter(Mutation_CDS %in% cds | Mutation_AA %in% aa)
-#' 
-#'   words <- words %>%
-#'     dplyr::left_join(genes_, c("word" = "gene_name")) %>%
-#'     dplyr::mutate(gene = ifelse(is.na(gene), FALSE, gene))
-#' 
-#'   words
-#' }
-
-#' @import dplyr tidytext stringr tm
-process_text <- function(text, gene_variant) {
-  # text <- q$text_Text
+#' @export
+#' @import tidytext tidyr
+process_text <- function(tidy_txt, gene_name, variant_name) {
+  # tidy_txt <- words; variant_name <- "r561c"; gene_name <- "pdgfrb"
   
-  sentences <- data.frame(txt = tolower(text), stringsAsFactors = FALSE) %>%
-    tidytext::unnest_tokens(sentence, txt, token = "regex", pattern = "\\. ") %>%
-    dplyr::filter(grepl("\\S", sentence)) %>%
-    dplyr::mutate(sentence_number = row_number())
+  variant_locations <- tidy_txt %>%
+    dplyr::filter(variant == variant_name) %>%
+    dplyr::pull(word_number)
   
-  words <- suppressWarnings(lapply(sentences$sentence_number, function(i, sentences) {
-    # i <- 1
-    words <- data_frame(txt = sentences[["sentence"]][i]) %>%
-      tidytext::unnest_tokens(word, txt, token = "regex", pattern = "\\s+") %>%
-      dplyr::mutate(word = sub(",", "", word))
-    
-    cbind(sentences[i, ], words)
-    
-  }, sentences = sentences))
+  variant_count <- length(variant_locations)
+ 
+  variant_disease_distances <- sapply(variant_locations, function(x, txt) {
+    # x <- variant_locations[1]
+    disease_loations <- txt %>%
+      dplyr::filter(disease) %>%
+      dplyr::pull(word_number)
+    min(abs(x - disease_loations))
+  }, txt = tidy_txt)
   
-  words <- Reduce(rbind, words) %>%
-    dplyr::mutate(word_number = row_number()) %>%
+  variant_disease_mean <- mean(variant_disease_distances)
+  variant_disease_min <- min(variant_disease_distances)
+  
+  variant_variant_distances <- sapply(variant_locations, 
+                                      function(x, txt, variant_name) {
+    # x <- variant_locations[1]
+    variant_loations <- txt %>%
+      dplyr::filter(variant != variant_name, !is.na(variant)) %>%
+      dplyr::pull(word_number)
+    min(abs(x - variant_loations))
+  }, txt = tidy_txt, variant_name = variant_name)
+  
+  variant_variant_mean <- mean(variant_variant_distances)
+  variant_variant_min <- min(variant_variant_distances)
+  
+  variant_in_disease_sentence <- tidy_txt %>%
     dplyr::group_by(sentence_number) %>%
-    dplyr::mutate(sentence_word_number = row_number()) %>%
-    dplyr::ungroup()
+    dplyr::filter(variant == variant_name, disease) %>%
+    dplyr::ungroup() %>%
+    dplyr::summarise(count = n()) %>%
+    dplyr::pull(count)
   
-  # add stop words
-  stops <- tidytext::stop_words %>%
-    dplyr::mutate(stop_word = TRUE) %>%
-    dplyr::select(word, stop_word) %>%
-    dplyr::distinct()
+  gene_in_disease_sentence <- tidy_txt %>%
+    dplyr::group_by(sentence_number) %>%
+    dplyr::filter(gene == gene_name, disease) %>%
+    dplyr::ungroup() %>%
+    dplyr::summarise(count = n()) %>%
+    dplyr::pull(count)
   
-  words <- words %>%
-    dplyr::left_join(stops, "word") %>%
-    dplyr::mutate(stop_word = ifelse(is.na(stop_word), FALSE, stop_word))
   
-  # add disease column
-  words <- add_disease(words) %>%
-    dplyr::mutate(word = gsub("\\(|\\)", "", word))
-  
-  # add gene column
-  words <- add_gene(words)
-  
-  # add variant column
-  words <- add_variant(words)
-  
- 
- 
-}
-
-add_gene <- function(x) {
-  # x <- words
-  
-  x$word_join <- sapply(x$word, function(y) {
-    # y <- x$word[126]
-    if(grepl("-", y)) {
-      splits <- strsplit(y, "-")[[1]]
-      lengths <- sapply(splits, nchar)
-      y <- splits[lengths == max(lengths)][1]
-    }
-    y
-  })
-  
-  x <- x %>%
-    dplyr::mutate(word_join = gsub("\\(|\\)", "", word_join)) %>% 
-    dplyr::left_join(genes, c("word_join" = "word")) %>%
-    dplyr::mutate(gene = ifelse(gene, word, gene),
-                  gene = gsub("\\(|\\)", "", gene)) %>%
-    dplyr::select(-word_join)
-  
-  x
-}
-
-add_variant <- function(x) {
-  # x <- words
-  
-  x <- x %>%
-    dplyr::mutate(variant = ifelse(grepl("p\\.", word), sub("p\\.", "", word), NA))
-  
-  proteins <- stringr::str_split_fixed(x$variant, "\\d{1,}", 2) %>%
-    as.data.frame(stringsAsFactors = FALSE)
-  names(proteins) <- c("from", "to")
-  
-  proteins <- dplyr::left_join(proteins, select(amino_acids, abbr, symbol),
-                               c("from" = "abbr")) %>%
-    dplyr::mutate(from = ifelse(is.na(symbol), from, symbol)) %>%
-    dplyr::select(-symbol)
-  proteins <- dplyr::left_join(proteins, select(amino_acids, abbr, symbol),
-                               c("to" = "abbr")) %>%
-    dplyr::mutate(to = ifelse(is.na(symbol), to, symbol)) %>%
-    dplyr::select(-symbol)
-  
-  proteins$location <- stringr::str_extract(x$variant, "\\d{1,}")
-  
-  proteins <- proteins %>%
-    dplyr::mutate(variant = paste0(from, location, to),
-                  variant = ifelse(is.na(location), NA, variant))
-  
-  x$variant <- proteins$variant
-  
-  x
-}
-
-add_disease <- function(x) {
-  # x <- words
-  
-  diseases <- x %>%
-    dplyr::filter(grepl("cancer|oma", word),
-                  !grepl("-", word)) %>%
-    dplyr::mutate(word = gsub("\\(|\\)|\\.|\\d", "", word)) %>%
-    dplyr::filter(!word %in% oma_stop_words) %>%
-    dplyr::pull(word) %>%
+  variant_sentences <- tidy_txt %>%
+    dplyr::filter(variant == variant_name) %>%
+    dplyr::pull(sentence_number) %>%
     unique()
   
-  abbrevs <- sapply(diseases, function(disease, x) {
-    # disease <- diseases[1]
-    first_occurance <- which(x$word == disease)[1]
-    if(grepl("^\\(.+\\)$", x$word[first_occurance + 1])) {
-      abbrev <- gsub("\\(|\\)", "", x$word[first_occurance + 1])
-    } else {
-      abbrev <- NA
-    }
-    abbrev
-  }, x = x)
+  sentiment_schema <- expand.grid(variant_sentences,
+                                  c("positive", "negative"),
+                                  stringsAsFactors = FALSE)
+  names(sentiment_schema) <- c("sentence_number", "sentiment")
   
-  diseases <- c(diseases, unique(abbrevs[!is.na(abbrevs)]))
-  diseases <- data.frame(word_join = diseases, disease = TRUE, stringsAsFactors = FALSE)
+  variant_sentence_sentiments <- tidy_txt %>%
+    dplyr::filter(sentence_number %in% variant_sentences) %>%
+    dplyr::inner_join(tidytext::get_sentiments("bing"), "word") %>%
+    dplyr::group_by(sentence_number, sentiment) %>%
+    dplyr::summarise(count = n()) %>%
+    dplyr::full_join(sentiment_schema, c("sentence_number", "sentiment")) %>%
+    dplyr::mutate(count = ifelse(is.na(count), 0, count)) %>%
+    tidyr::spread(sentiment, count) %>%
+    dplyr::mutate(score = positive - negative) %>%
+    dplyr::pull(score)
+    
+  variant_sentiment_mean <- mean(variant_sentence_sentiments)
+  variant_sentiment_max <- max(variant_sentence_sentiments)
   
-  x <- x %>%
-    dplyr::mutate(word_join = gsub("\\(|\\)|\\.|\\d", "", word)) %>%
-    dplyr::left_join(diseases,"word_join") %>%
-    dplyr::mutate(disease = ifelse(is.na(disease), FALSE, TRUE)) %>%
-    dplyr::select(-word_join)
-  
-  x
-}
+  data.frame(gene = gene_name, variant = variant_name, variant_count, variant_disease_mean,
+             variant_disease_min, variant_variant_mean, variant_variant_min,
+             variant_sentiment_mean, variant_sentiment_max, gene_in_disease_sentence,
+             stringsAsFactors = FALSE)
+} 
 
