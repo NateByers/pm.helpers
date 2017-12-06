@@ -1,7 +1,20 @@
+# library(dplyr)
+# library(bigrquery)
+# project <- "tensile-axiom-167413"
+# sql <- "SELECT *
+# FROM [tensile-axiom-167413:cosmic.training_variants] variants
+# INNER JOIN [tensile-axiom-167413:cosmic.training_text] text
+# ON variants.ID = text.ID
+# WHERE variants.ID = 1844"
+# q <- query_exec(sql, project = project, useLegacySql = FALSE)
+# 
+
+
+
 #' @import dplyr tidytext stringr tm
 #' @export
-tidy_text <- function(text, gene_variant) {
-  
+tidy_text <- function(text) {
+  # text <- q$text_Text
   sentences <- data.frame(txt = tolower(text), stringsAsFactors = FALSE) %>%
     tidytext::unnest_tokens(sentence, txt, token = "regex", pattern = "\\. ") %>%
     dplyr::filter(grepl("\\S", sentence)) %>%
@@ -96,7 +109,7 @@ add_variant <- function(x) {
 }
 
 add_disease <- function(x) {
-  
+  # x <- words
   diseases <- x %>%
     dplyr::filter(grepl("cancer|oma", word),
                   !grepl("-", word)) %>%
@@ -105,6 +118,10 @@ add_disease <- function(x) {
     dplyr::pull(word) %>%
     unique()
   
+  if(length(diseases) == 0){
+    x$disease <- FALSE
+    return(x)
+  }
   abbrevs <- sapply(diseases, function(disease, x) {
     first_occurance <- which(x$word == disease)[1]
     if(grepl("^\\(.+\\)$", x$word[first_occurance + 1])) {
