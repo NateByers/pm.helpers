@@ -101,7 +101,7 @@ add_disease <- function(x) {
     dplyr::filter(grepl("cancer|oma", word),
                   !grepl("-", word)) %>%
     dplyr::mutate(word = gsub("\\(|\\)|\\.|\\d", "", word)) %>%
-    dplyr::filter(!word %in% oma_stop_words) %>%
+    dplyr::filter(!word %in% pm.helpers::oma_stop_words) %>%
     dplyr::pull(word) %>%
     unique()
   
