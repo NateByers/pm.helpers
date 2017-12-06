@@ -1,7 +1,7 @@
 #' @export
 #' @import tidytext tidyr
 process_text <- function(tidy_txt, gene_name, variant_name) {
-  
+  # tidy_txt <- tidy_text(q$text_Text)
   variant_locations <- tidy_txt %>%
     dplyr::filter(variant == variant_name) %>%
     dplyr::pull(word_number)

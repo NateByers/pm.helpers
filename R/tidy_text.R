@@ -7,7 +7,7 @@
 # ON variants.ID = text.ID
 # WHERE variants.ID = 1844"
 # q <- query_exec(sql, project = project, useLegacySql = FALSE)
-# 
+
 
 
 
@@ -80,10 +80,27 @@ add_gene <- function(x) {
 }
 
 add_variant <- function(x) {
-  
+  # x <- words
   x <- x %>%
     dplyr::mutate(variant = ifelse(grepl("p\\.", word), sub("p\\.", "", word), NA))
   
+  possible_variants <- cbind(x$word, stringr::str_split_fixed(x$word, "\\d{1,}", 2),
+                             stringsAsFactors = FALSE) %>%
+    as.data.frame(stringsAsFactors = FALSE) %>%
+    dplyr::rename(word = V1, prefix = V2, suffix = V3)
+  possible_variants$variant_ <- as.vector(apply(possible_variants, 1, function(row) {
+    (row[[2]] %in% amino_acids$abbr & row[[3]] %in% amino_acids$abbr) |
+      (row[[2]] %in% amino_acids$symbol & row[[3]] %in% amino_acids$symbol)
+  }))
+  possible_variants <- possible_variants %>%
+    dplyr::filter(variant_) %>%
+    dplyr::select(word, variant_)
+  
+  x <- x %>%
+    dplyr::left_join(possible_variants, "word") %>%
+    dplyr::mutate(variant = ifelse(variant_, word, variant)) %>%
+    dplyr::select(-variant_)
+
   proteins <- stringr::str_split_fixed(x$variant, "\\d{1,}", 2) %>%
     as.data.frame(stringsAsFactors = FALSE)
   names(proteins) <- c("from", "to")
